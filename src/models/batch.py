@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Set
 from datetime import date
 
 # Order Line
@@ -25,25 +25,29 @@ class Batch:
   def __init__(self, ref: str, sku: str, quantity: int):
     self.ref = ref
     self.sku = sku
-    self.avaliable_qty = quantity
-    self._allocations = set()
+    self._purchased_quantity = quantity
+    self._allocations = set() # type: Set[OrderLine]
 
 
   def can_allocate(self, order_line: OrderLine) -> bool:
-    if self.avaliable_qty < order_line.quantity:
-      return False
-    if self.sku != order_line.sku:
-      return False
-    return True
+    return self.available_quantity >= order_line.quantity and self.sku == order_line.sku
 
 
   def allocate(self, order_line: OrderLine) -> int:
-    self.can_allocate(order_line)
-    self._allocations.add(order_line)
-    self.avaliable_qty -= order_line.quantity
+    if self.can_allocate(order_line):
+      self._allocations.add(order_line)
 
 
-order_line = OrderLine(sku='BLACK_CHAIR', order_id='123', quantity=5)
-batch = Batch(ref=333, sku='BLACK_CHAIR', quantity=10)
+  def deallocate(self, order_line: OrderLine):
+    if order_line in self._allocations:
+      self._allocations.remove(order_line)
   
-print(batch.can_allocate(order_line))
+
+  @property
+  def allocated_qunatity(self) -> int:
+    return sum(order_line.quantity for order_line in self._allocations)
+  
+  @property
+  def available_quantity(self):
+    return self._purchased_quantity - self.allocated_qunatity
+  
